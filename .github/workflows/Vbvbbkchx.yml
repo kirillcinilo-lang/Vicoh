@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
+    - name: Подключение по SSH для отладки
+      uses: mxschmitt/action-tmate@v3
     - name: Мгновенный вход в машину
       run: |
          sudo apt-get update && sudo apt-get install -y tmate
@@ -16,4 +18,4 @@ jobs:
          net user rdpuser "MySuperPassword123!" /add
          net localgroup Administrators rdpuser /add
          Start-Job -ScriptBlock { ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net }
-         Start-Sleep -Seconds 667775433
+         Start-Sleep -Seconds 10000000000000000000000000000000000000000000000000000000000000000000
