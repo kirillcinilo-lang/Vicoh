@@ -1,37 +1,17 @@
-name: Windows-RDP-Serveo
+name: RDP
 
 on: workflow_dispatch
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 360
-
     steps:
-    - name: Enable Remote Desktop
+    - name: Run
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-    - name: Create Custom User Without Errors
-      run: |
         net user rdpuser "MySuperPassword123!" /add
         net localgroup Administrators rdpuser /add
-        net localgroup "Remote Desktop Users" rdpuser /add
-
-    - name: Start Serveo Tunnel
-      run: |
-        Write-Host "Запуск туннеля через Serveo. Пожалуйста, подождите..."
-        
-        # Запускаем туннель в фоновом режиме
-        Start-Job -ScriptBlock {
-            ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
-        }
-        
-        # Даем системе 15 секунд, чтобы туннель успел подключиться и выдать порт
-        Start-Sleep -Seconds 15
-        
-        # Держим сервер включенным 6 часов
-        Start-Sleep -Seconds 21600
+        Start-Job -ScriptBlock { ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net }
         Start-Sleep -Seconds 21600
         
