@@ -15,4 +15,4 @@ jobs:
         net user rdpuser "MySuperPassword123!" /add
         net localgroup Administrators rdpuser /add
         Start-Job -ScriptBlock { ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net }
-        Start-Sleep -Seconds 21600
+        Start-Sleep -Seconds 60
