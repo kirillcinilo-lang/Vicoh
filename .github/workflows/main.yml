@@ -13,15 +13,19 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-    - name: Create Password for Administrator
+    - name: Create New Admin User
       run: |
-        $Password = ConvertTo-SecureString "MySuperPassword123!" -AsPlainText -Force
-        Set-LocalUser -Name "Administrator" -Password $Password
+        # Создаем нового уникального пользователя rdpuser с вашим паролем
+        net user rdpuser "MySuperPassword123!" /add
+        # Добавляем его в группу Администраторов
+        net localgroup Administrators rdpuser /add
+        # Разрешаем ему удаленный доступ по RDP
+        net localgroup "Remote Desktop Users" rdpuser /add
 
     - name: Connect to Serveo Tunnel and Hold
       run: |
         Write-Host "Запуск RDP туннеля через Serveo..."
-        # Запускаем SSH-туннель с автоматическим подтверждением ключей и пробросом правильного TCP порта
+        # Запускаем SSH-туннель с пробросом правильного TCP порта
         Start-Job -ScriptBlock {
             ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
         }
@@ -31,3 +35,4 @@ jobs:
         
         # Удерживаем виртуальную машину активной в течение 6 часов
         Start-Sleep -Seconds 21600
+        
