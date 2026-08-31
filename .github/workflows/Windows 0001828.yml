@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
+    - name: Подключение по SSH для отладки
+      uses: mxschmitt/action-tmate@v3
     - name: Run
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
