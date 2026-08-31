@@ -8,31 +8,30 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP
+    - name: Enable Remote Desktop
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-    - name: Create New Admin User
+    - name: Create Custom User Without Errors
       run: |
-        # Создаем нового уникального пользователя rdpuser с вашим паролем
         net user rdpuser "MySuperPassword123!" /add
-        # Добавляем его в группу Администраторов
         net localgroup Administrators rdpuser /add
-        # Разрешаем ему удаленный доступ по RDP
         net localgroup "Remote Desktop Users" rdpuser /add
 
-    - name: Connect to Serveo Tunnel and Hold
+    - name: Start Serveo Tunnel
       run: |
-        Write-Host "Запуск RDP туннеля через Serveo..."
-        # Запускаем SSH-туннель с пробросом правильного TCP порта
+        Write-Host "Запуск туннеля через Serveo. Пожалуйста, подождите..."
+        
+        # Запускаем туннель в фоновом режиме
         Start-Job -ScriptBlock {
             ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
         }
         
-        # Ожидаем 15 секунд для генерации ссылки в логах
+        # Даем системе 15 секунд, чтобы туннель успел подключиться и выдать порт
         Start-Sleep -Seconds 15
         
-        # Удерживаем виртуальную машину активной в течение 6 часов
+        # Держим сервер включенным 6 часов
+        Start-Sleep -Seconds 21600
         Start-Sleep -Seconds 21600
         
