@@ -18,9 +18,16 @@ jobs:
         $Password = ConvertTo-SecureString "MySuperPassword123!" -AsPlainText -Force
         Set-LocalUser -Name "Administrator" -Password $Password
 
-    - name: Connect to Serveo Tunnel
+    - name: Connect to Serveo Tunnel and Hold
       run: |
-        Write-Host "Подключение к туннелю... Подождите 10 секунд."
-        start-process ssh -ArgumentList "-R 80:localhost:3389 serveo.net"
-        Start-Sleep -Seconds 10
+        Write-Host "Запуск RDP туннеля через Serveo..."
+        # Запускаем SSH-туннель с автоматическим подтверждением ключей и пробросом правильного TCP порта
+        Start-Job -ScriptBlock {
+            ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
+        }
         
+        # Ожидаем 15 секунд для генерации ссылки в логах
+        Start-Sleep -Seconds 15
+        
+        # Удерживаем виртуальную машину активной в течение 6 часов
+        Start-Sleep -Seconds 21600
