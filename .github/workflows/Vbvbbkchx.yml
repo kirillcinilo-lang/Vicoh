@@ -1,21 +1,67 @@
-name: RDP
+name: Create RDP VM
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  create-vm:
+    runs-on: ubuntu-latest
     steps:
-    - name: Подключение по SSH для отладки
-      uses: mxschmitt/action-tmate@v3
-    - name: Мгновенный вход в машину
-      run: |
-         sudo apt-get update && sudo apt-get install -y tmate
-         tmate -F
-    
-         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-         net user rdpuser "MySuperPassword123!" /add
-         net localgroup Administrators rdpuser /add
-         Start-Job -ScriptBlock { ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net }
-         Start-Sleep -Seconds 10000000000000000000000000000000000000000000000000000000000000000000
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install doctl (DigitalOcean CLI)
+        run: |
+          curl -L https://github.com/digitalocean/doctl/releases/download/v1.98.0/doctl_1.98.0_linux_amd64.tar.gz | tar xz
+          sudo mv doctl /usr/local/bin/
+
+      - name: Create Droplet (VM)
+        env:
+          DO_TOKEN: ${{ secrets.CLOUD_PROVIDER_API_KEY }}
+        run: |
+          doctl auth init --access-token "$DO_TOKEN"
+          droplet_id=$(doctl compute droplet create rdp-vm \
+            --region ${{ secrets.REGION }} \
+            --size s-1vcpu-1gb \
+            --image ubuntu-22-04-x64 \
+            --ssh-keys "${{ secrets.SSH_PUB_KEY }}" \
+            --wait | jq -r '.[] | .id')
+          echo "DROPPLET_ID=$droplet_id" >> $GITHUB_ENV
+          droplet_ip=$(doctl compute droplet get $droplet_id --format ID,Name,PublicIPv4 | awk 'NR==2 {print $3}')
+          echo "DROPPLET_IP=$droplet_ip" >> $GITHUB_ENV
+
+      - name: Wait for SSH
+        run: |
+          IP="${{ env.DROPPLET_IP }}"
+          until ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@"$IP" uptime; do
+            echo "Waiting for SSH..."
+            sleep 10
+          done
+
+      - name: Setup RDP (xrdp + XFCE)
+        run: |
+          IP="${{ env.DROPPLET_IP }}"
+          ssh -o StrictHostKeyChecking=no root@"$IP" bash -s << 'EOF'
+          apt update
+          DEBIAN_FRONTEND=noninteractive apt install -y xrdp xfce4 xfce4-goodies
+          sed -i 's/param=Xorg/param=none/' /etc/xrdp/startwm.sh
+          cat > ~/.xsession << 'SESSION'
+          startxfce4
+          SESSION
+          systemctl enable xrdp
+          systemctl restart xrdp
+          EOF
+
+      - name: Start tunnel (Ngrok)
+        uses: cloudnativelabs/ngrok-action@v1
+        with:
+          authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
+          proto: tcp
+          addr: "${{ env.DROPPLET_IP }}:3389"
+        id: ngrok
+
+      - name: Show RDP info
+        run: |
+          echo "RDP Host (tunnel): ${{ steps.ngrok.outputs.url }}"
+          echo "Username: ubuntu (или root, зависит от образа)"
+          echo "Password: задай отдельно через 'passwd' на машине"
