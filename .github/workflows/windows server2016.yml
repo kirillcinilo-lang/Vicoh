@@ -1,0 +1,42 @@
+name: Create Windows Server 2016 (Azure)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-win-vm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Windows Server 2016 VM
+        run: |
+          az vm create \
+            --resource-group myResourceGroup \
+            --name WinSrv2016VM \
+            --image MicrosoftWindowsServer:WindowsServer:2016-Datacenter:latest \
+            --size Standard_B1s \
+            --admin-username azureuser \
+            --admin-password "${{ secrets.VM_ADMIN_PASSWORD }}" \
+            --public-ip-address myPublicIP \
+            --nsg myNSG \
+            --open-ports 3389
+
+          ip=$(az vm show --name WinSrv2016VM --resource-group myResourceGroup --query publicIpAddress -o tsv)
+          echo "VM_IP=$ip" >> $GITHUB_ENV
+
+      - name: Show RDP info
+        run: |
+          echo "✅ Windows Server 2016 created!"
+          echo "RDP Host: ${{ env.VM_IP }}"
+          echo "Port: 3389"
+          echo "Username: azureuser"
+          echo ""
+          echo "Подключайся через RDP-клиент к: ${{ env.VM_IP }}:3389"
+          echo "ВАЖНО: удали VM после теста, чтобы не набежала оплата!"
