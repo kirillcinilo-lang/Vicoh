@@ -10,12 +10,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install doctl (DigitalOcean CLI)
+      - name: Install doctl
         run: |
           curl -L https://github.com/digitalocean/doctl/releases/download/v1.98.0/doctl_1.98.0_linux_amd64.tar.gz | tar xz
           sudo mv doctl /usr/local/bin/
 
-      - name: Create Droplet (VM)
+      - name: Create Droplet
         env:
           DO_TOKEN: ${{ secrets.CLOUD_PROVIDER_API_KEY }}
         run: |
@@ -52,16 +52,12 @@ jobs:
           systemctl restart xrdp
           EOF
 
-      - name: Start tunnel (Ngrok)
-        uses: cloudnativelabs/ngrok-action@v1
-        with:
-          authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
-          proto: tcp
-          addr: "${{ env.DROPPLET_IP }}:3389"
-        id: ngrok
-
-      - name: Show RDP info
+      - name: Show VM info
         run: |
-          echo "RDP Host (tunnel): ${{ steps.ngrok.outputs.url }}"
-          echo "Username: ubuntu (или root, зависит от образа)"
-          echo "Password: задай отдельно через 'passwd' на машине"
+          echo "VM IP: ${{ env.DROPPLET_IP }}"
+          echo "RDP Port: 3389"
+          echo "Username: ubuntu"
+          echo ""
+          echo "Чтобы получить доступ, запусти ngrok на своей машине:"
+          echo "ngrok tcp 3389"
+          echo "И подключайся к адресу, который выдаст ngrok."
