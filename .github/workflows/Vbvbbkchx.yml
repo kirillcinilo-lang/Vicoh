@@ -10,10 +10,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install doctl
+      - name: Install doctl and jq
         run: |
           curl -L https://github.com/digitalocean/doctl/releases/download/v1.98.0/doctl_1.98.0_linux_amd64.tar.gz | tar xz
           sudo mv doctl /usr/local/bin/
+          sudo apt update
+          sudo apt install -y jq
 
       - name: Create Droplet
         env:
@@ -27,12 +29,19 @@ jobs:
             --ssh-keys "${{ secrets.SSH_PUB_KEY }}" \
             --wait | jq -r '.[] | .id')
           echo "DROPPLET_ID=$droplet_id" >> $GITHUB_ENV
-          droplet_ip=$(doctl compute droplet get $droplet_id --format ID,Name,PublicIPv4 | awk 'NR==2 {print $3}')
+
+          # Более надёжный способ получить публичный IP
+          droplet_ip=$(doctl compute droplet get "$droplet_id" --output json | jq -r '.[] | .networks.v4[] | select(.type=="public") | .ip_address' | head -n1)
           echo "DROPPLET_IP=$droplet_ip" >> $GITHUB_ENV
+          echo "VM IP: $droplet_ip"
 
       - name: Wait for SSH
         run: |
           IP="${{ env.DROPPLET_IP }}"
+          if [ -z "$IP" ]; then
+            echo "ERROR: IP is empty — check the previous step log"
+            exit 1
+          fi
           until ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@"$IP" uptime; do
             echo "Waiting for SSH..."
             sleep 10
@@ -54,10 +63,11 @@ jobs:
 
       - name: Show VM info
         run: |
-          echo "VM IP: ${{ env.DROPPLET_IP }}"
+          echo "✅ VM created successfully!"
+          echo "IP: ${{ env.DROPPLET_IP }}"
           echo "RDP Port: 3389"
           echo "Username: ubuntu"
           echo ""
-          echo "Чтобы получить доступ, запусти ngrok на своей машине:"
-          echo "ngrok tcp 3389"
-          echo "И подключайся к адресу, который выдаст ngrok."
+          echo "Чтобы подключиться, запусти на своей машине:"
+          echo "  ngrok tcp 3389"
+          echo "И используй выданный адрес в RDP-клиенте."
